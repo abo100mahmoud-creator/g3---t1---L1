@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>عرض الملف</title>
+
+<style>
+body {
+  margin: 0;
+  background: #f5f7fb;
+  font-family: Arial;
+}
+
+/* شريط علوي بسيط */
+.header {
+  background: #0b3d91;
+  color: white;
+  padding: 10px;
+  text-align: center;
+  font-size: 16px;
+}
+
+/* حاوية الـ PDF */
+#viewerContainer {
+  width: 100%;
+  height: calc(100vh - 40px);
+  overflow: auto;
+}
+</style>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+
+<body>
+
+<div class="header">📄 عرض المحتوى</div>
+
+<div id="viewerContainer"></div>
+
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const pdfUrl = urlParams.get('file') || 'file.pdf';
+
+const container = document.getElementById('viewerContainer');
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const loadingTask = pdfjsLib.getDocument(pdfUrl);
+
+loadingTask.promise.then(function(pdf) {
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    pdf.getPage(pageNum).then(function(page) {
+
+      const scale = 1.5;
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      container.appendChild(canvas);
+
+      page.render({
+        canvasContext: context,
+        viewport: viewport
+      });
+    });
+  }
+});
+</script>
+
+</body>
+</html>
