@@ -1,77 +1,371 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<title>عرض الملف</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>الكتاب التفاعلي</title>
 
-<style>
-body {
-  margin: 0;
-  background: #f5f7fb;
-  font-family: Arial;
-}
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-/* شريط علوي بسيط */
-.header {
-  background: #0b3d91;
-  color: white;
-  padding: 10px;
-  text-align: center;
-  font-size: 16px;
-}
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: Arial, sans-serif;
+      background: #eef2f7;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
 
-/* حاوية الـ PDF */
-#viewerContainer {
-  width: 100%;
-  height: calc(100vh - 40px);
-  overflow: auto;
-}
-</style>
+    body {
+      display: flex;
+      flex-direction: column;
+    }
 
-<!-- PDF.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    .topbar {
+      height: 58px;
+      min-height: 58px;
+      background: #0b3d91;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      gap: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.15);
+      z-index: 10;
+    }
+
+    .title {
+      font-size: 16px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: none;
+      background: #ffffff;
+      color: #0b3d91;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    button:hover {
+      opacity: .95;
+    }
+
+    .page-indicator {
+      background: rgba(255,255,255,.15);
+      padding: 7px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .stage {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      overflow: hidden;
+    }
+
+    #flipbook {
+      width: min(94vw, 1200px);
+      height: min(82vh, 820px);
+      margin: 0 auto;
+    }
+
+    .page {
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+    }
+
+    .page-inner {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: white;
+      position: relative;
+    }
+
+    .page canvas {
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+      box-shadow: 0 4px 18px rgba(0,0,0,.08);
+    }
+
+    .cover,
+    .end-cover {
+      background: linear-gradient(135deg, #0b3d91, #1d5ed8);
+      color: white;
+      text-align: center;
+      padding: 30px;
+      font-weight: bold;
+    }
+
+    .cover h1,
+    .end-cover h2 {
+      margin: 0 0 12px;
+      line-height: 1.5;
+    }
+
+    .cover p,
+    .end-cover p {
+      margin: 0;
+      opacity: .95;
+      line-height: 1.8;
+    }
+
+    .loader {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eef2f7;
+      z-index: 20;
+      flex-direction: column;
+      gap: 10px;
+      color: #0b3d91;
+      font-weight: bold;
+    }
+
+    .spinner {
+      width: 42px;
+      height: 42px;
+      border: 4px solid #c7d2fe;
+      border-top-color: #0b3d91;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+      .topbar {
+        height: auto;
+        padding: 10px;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      #flipbook {
+        width: 96vw;
+        height: 78vh;
+      }
+
+      .title {
+        font-size: 14px;
+      }
+
+      button,
+      .page-indicator {
+        font-size: 13px;
+      }
+    }
+  </style>
 </head>
+<body oncontextmenu="return false">
 
-<body>
+  <div class="topbar">
+    <div class="title">📘 الكتاب التفاعلي</div>
 
-<div class="header">📄 عرض المحتوى</div>
+    <div class="controls">
+      <button id="prevBtn">السابق</button>
+      <div class="page-indicator" id="pageInfo">جاري التحميل...</div>
+      <button id="nextBtn">التالي</button>
+    </div>
+  </div>
 
-<div id="viewerContainer"></div>
+  <div class="stage">
+    <div id="flipbook"></div>
+  </div>
 
-<script>
-const urlParams = new URLSearchParams(window.location.search);
-const pdfUrl = urlParams.get('file') || 'file.pdf';
+  <div class="loader" id="loader">
+    <div class="spinner"></div>
+    <div>جاري تجهيز الكتاب التفاعلي...</div>
+  </div>
 
-const container = document.getElementById('viewerContainer');
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  <!-- StPageFlip -->
+  <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
 
-const loadingTask = pdfjsLib.getDocument(pdfUrl);
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const pdfUrl = params.get("file") || "file.pdf";
 
-loadingTask.promise.then(function(pdf) {
-  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-    pdf.getPage(pageNum).then(function(page) {
+    const loader = document.getElementById("loader");
+    const flipbookEl = document.getElementById("flipbook");
+    const pageInfo = document.getElementById("pageInfo");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
 
-      const scale = 1.5;
-      const viewport = page.getViewport({ scale });
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
+    let pageFlip;
+    let totalRenderedPages = 0;
 
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
+    function createPageElement(contentEl, extraClass = "") {
+      const page = document.createElement("div");
+      page.className = "page " + extraClass;
 
-      container.appendChild(canvas);
+      const inner = document.createElement("div");
+      inner.className = "page-inner";
 
-      page.render({
-        canvasContext: context,
-        viewport: viewport
-      });
+      inner.appendChild(contentEl);
+      page.appendChild(inner);
+
+      return page;
+    }
+
+    function createCover(title, subtitle, isEnd = false) {
+      const content = document.createElement("div");
+      content.className = isEnd ? "end-cover" : "cover";
+      content.innerHTML = isEnd
+        ? `<h2>${title}</h2><p>${subtitle}</p>`
+        : `<h1>${title}</h1><p>${subtitle}</p>`;
+      return createPageElement(content, "hard");
+    }
+
+    async function renderPdfToPages(pdf) {
+      const pages = [];
+
+      pages.push(
+        createCover(
+          "الكتاب التفاعلي",
+          "يمكنك تقليب الصفحات بالسحب أو باستخدام الأزرار"
+        )
+      );
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+
+        const viewport = page.getViewport({ scale: 1.7 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d", { alpha: false });
+
+        const outputScale = window.devicePixelRatio || 1;
+
+        canvas.width = Math.floor(viewport.width * outputScale);
+        canvas.height = Math.floor(viewport.height * outputScale);
+        canvas.style.width = Math.floor(viewport.width) + "px";
+        canvas.style.height = Math.floor(viewport.height) + "px";
+
+        context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+
+        await page.render({
+          canvasContext: context,
+          viewport: viewport
+        }).promise;
+
+        pages.push(createPageElement(canvas));
+      }
+
+      pages.push(
+        createCover(
+          "انتهى العرض",
+          "يمكنك الرجوع للصفحات السابقة في أي وقت",
+          true
+        )
+      );
+
+      return pages;
+    }
+
+    async function initBook() {
+      try {
+        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+        const pdf = await loadingTask.promise;
+
+        totalRenderedPages = pdf.numPages;
+
+        const pages = await renderPdfToPages(pdf);
+
+        pageFlip = new St.PageFlip(flipbookEl, {
+          width: 550,
+          height: 780,
+          size: "stretch",
+          minWidth: 280,
+          maxWidth: 1200,
+          minHeight: 360,
+          maxHeight: 1600,
+          maxShadowOpacity: 0.25,
+          showCover: true,
+          mobileScrollSupport: false,
+          useMouseEvents: true,
+          swipeDistance: 30,
+          clickEventForward: false,
+          showPageCorners: true,
+          disableFlipByClick: false,
+          startPage: 0,
+          autoSize: true
+        });
+
+        pageFlip.loadFromHTML(pages);
+
+        const updateInfo = () => {
+          const currentIndex = pageFlip.getCurrentPageIndex();
+
+          if (currentIndex === 0) {
+            pageInfo.textContent = "الغلاف";
+          } else if (currentIndex === totalRenderedPages + 1) {
+            pageInfo.textContent = "نهاية الملف";
+          } else {
+            pageInfo.textContent = `صفحة ${currentIndex} من ${totalRenderedPages}`;
+          }
+        };
+
+        pageFlip.on("flip", updateInfo);
+        pageFlip.on("init", updateInfo);
+        updateInfo();
+
+        prevBtn.addEventListener("click", () => pageFlip.flipPrev());
+        nextBtn.addEventListener("click", () => pageFlip.flipNext());
+
+        loader.style.display = "none";
+      } catch (error) {
+        console.error(error);
+        loader.innerHTML = "<div>تعذر تحميل الملف. تأكد من وجود file.pdf في نفس المستودع.</div>";
+      }
+    }
+
+    initBook();
+
+    document.addEventListener("keydown", (e) => {
+      if (!pageFlip) return;
+      if (e.key === "ArrowLeft") pageFlip.flipNext();
+      if (e.key === "ArrowRight") pageFlip.flipPrev();
     });
-  }
-});
-</script>
-
+  </script>
 </body>
 </html>
